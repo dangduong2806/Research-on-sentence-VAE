@@ -127,7 +127,7 @@ def main(args):
                     length=batch['length'],
                     mean=mean,
                     logv=logv,
-                    anneal_function=args.annueal_function,
+                    anneal_function=args.anneal_function,
                     step=step,
                     k=args.k,
                     x0=args.x0
