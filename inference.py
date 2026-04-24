@@ -38,6 +38,8 @@ def main(args):
     if torch.cuda.is_available():
         model = model.cuda()
 
+    print(f"SOS Index: {w2i['<sos>']}") # Xem nó có ra số không hay bị None
+    
     model.eval()
 
     samples, z = model.inference(n=args.num_samples)
