@@ -77,7 +77,7 @@ class PTB(Dataset):
                 vocab = json.load(file)
             self.w2i, self.i2w = vocab['w2i'], vocab['i2w']
     
-    def _load_data(self):
+    def _load_vocab(self):
         with open(os.path.join(self.data_dir, self.vocab_file), 'r') as vocab_file:
             vocab = json.load(vocab_file)
         self.w2i, self.i2w = vocab['w2i'], vocab['i2w']
