@@ -154,7 +154,9 @@ class SentenceVAE(nn.Module):
         t = 0
         while t < self.max_sequence_length and len(running_seqs) > 0:
             if t == 0:
-                input_sequence = to_var(torch.tensor(batch_size).fill_(self.sos_idx).long())
+                # input_sequence = to_var(torch.tensor(batch_size).fill_(self.sos_idx).long())
+                input_sequence = torch.full((batch_size,), self.sos_idx, dtype=torch.long)
+                input_sequence = to_var(input_sequence)
 
             input_sequence = input_sequence.unsqueeze(1)
             input_embedding = self.embedding(input_sequence)
