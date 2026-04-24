@@ -43,7 +43,7 @@ def main(args):
         embedding_dropout = args.embedding_dropout,
         latent_size = args.latent_size,
         num_layers = args.num_layers,
-        bidirectional = args.bidiractinal
+        bidirectional = args.bidirectional
     )
 
     model = SentenceVAE(**params)
