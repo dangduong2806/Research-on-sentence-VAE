@@ -88,7 +88,7 @@ def main(args):
     
     optimizer = torch.optim.Adam(model.parameters(), lr = args.learning_rate)
 
-    tensor = torch.Tensor
+    tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
 
     step = 0
 
