@@ -126,6 +126,47 @@ class SentenceVAE(nn.Module):
 
         return logp, mean, logv, z
     
+    def encode(self, input_sequence, length, sample=False):
+        batch_size = input_sequence.size(0)
+        sorted_lengths, sorted_idx = torch.sort(length, descending=True)
+
+        input_sequence = input_sequence[sorted_idx]
+
+        input_embedding = self.embedding(input_sequence)
+
+        packed_input = rnn_utils.pack_padded_sequence(
+            input=input_embedding,
+            lengths=sorted_lengths.cpu().tolist(),
+            batch_first=True
+        )
+
+        _, hidden = self.encoder_rnn(packed_input)
+
+        if self.bidirectional or self.num_layers > 1:
+            hidden = hidden.transpose(0, 1).contiguous().view(
+                batch_size,
+                self.hidden_size * self.hidden_factor
+            )
+        else:
+            hidden = hidden.squeeze(0)
+        
+        mean = self.hidden2mean(hidden)
+        logv = self.hidden2logv(hidden)
+
+        if sample:
+            std = torch.exp(0.5 * logv)
+            z = to_var(torch.randn([batch_size, self.latent_size]))
+            z = z * std + mean
+        else:
+            z = mean
+        
+        _, reversed_idx = torch.sort(sorted_idx)
+        mean = mean[reversed_idx]
+        logv = logv[reversed_idx]
+        z = z[reversed_idx]
+
+        return mean, logv, z
+    
     def inference(self, n = 4, z = None):
         if z is None:
             batch_size = n

@@ -2,9 +2,26 @@ import os
 import json
 import torch
 import argparse
+from nltk.tokenize import TweetTokenizer
 
 from model import SentenceVAE
 from utils import to_var, idx2word, interpolate
+
+def setence_to_tensor(sentence, w2i, max_sequence_length):
+    tokenizer = TweetTokenizer(preserve_case=False)
+    words = tokenizer.tokenize(sentence)
+
+    tokens = ['<sos>'] + words
+    tokens = tokens[:max_sequence_length]
+    length = len(tokens)
+
+    tokens.extend(['<pad>'] * (max_sequence_length - length))
+    ids = [w2i.get(token, w2i['<unk>']) for token in tokens]
+
+    input_tensor = torch.tensor([ids], dtype=torch.long)
+    length_tensor = torch.tensor([length], dtype=torch.long)
+
+    return input_tensor, length_tensor
 
 def main(args):
     with open(args.data_dir+'/ptb.vocab.json', 'r') as file:
@@ -42,6 +59,25 @@ def main(args):
     
     model.eval()
 
+    if args.input_sentence is not None:
+        input_tensor, length_tensor = setence_to_tensor(
+            sentence=args.input_sentence,
+            w2i=w2i,
+            max_sequence_length=args.max_sequence_length
+        )
+        input_tensor = to_var(input_tensor)
+        length_tensor = to_var(length_tensor)
+
+        with torch.no_grad():
+            mean, logv, z = model.encode(input_tensor, length_tensor, sample=False)
+            samples, _ = model.inference(z=z)
+        print('----------INPUT----------')
+        print(args.input_sentence)
+
+        print('------RECONSTRUCTION------')
+        print(*idx2word(samples, i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
+        return
+
     samples, z = model.inference(n=args.num_samples)
     print('----------SAMPLES----------')
     print(*idx2word(samples, i2w=i2w, pad_idx=w2i['<pad>']), sep='\n')
@@ -60,6 +96,9 @@ if __name__ == '__main__':
 
     parser.add_argument('-c', '--load_checkpoint', type=str)
     parser.add_argument('-n', '--num_samples', type=int, default=10)
+    
+    parser.add_argument('--input_sentence', '--input_sentence', type=str, default=None)
+
 
     parser.add_argument('-dd', '--data_dir', type=str, default='data')
     parser.add_argument('-ms', '--max_sequence_length', type=int, default=50)
