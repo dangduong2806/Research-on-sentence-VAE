@@ -4,6 +4,8 @@ import time
 import torch
 import argparse
 import numpy as np
+import matplotlib.pyplot as plt
+
 from multiprocessing import cpu_count
 from tensorboardX import SummaryWriter
 from torch.utils.data import DataLoader
@@ -92,6 +94,9 @@ def main(args):
 
     step = 0
 
+    train_losses = []
+    valid_losses = []
+
     best_valid_elbo = float('inf')
     best_epoch = -1
     epochs_without_improvement = 0
@@ -172,6 +177,11 @@ def main(args):
             
             epoch_elbo = tracker['ELBO'].mean().item()
 
+            if split == "train":
+                train_losses.append(epoch_elbo)
+            elif split == "valid":
+                valid_losses.append(epoch_elbo)
+
             if args.tensorboard_logging:
                 writer.add_scalar("%s-Epoch/ELBO" % split.upper(), torch.mean(tracker['ELBO']), epoch)
 
@@ -211,7 +221,22 @@ def main(args):
 
         if stop_training:
             break   
+    
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(train_losses) + 1), train_losses, label='Train Loss', marker='o')
+    plt.plot(range(1, len(valid_losses) + 1), valid_losses, label='Valid Loss', marker='o')
 
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.title('Train vs Validation Loss')
+    plt.legend()
+    plt.grid(True)
+
+    plot_path = os.path.join(save_model_path, 'loss_curve.png')
+    plt.savefig(plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+
+    print("Loss curve saved at %s" % plot_path)
 
 
 if __name__ == '__main__':
