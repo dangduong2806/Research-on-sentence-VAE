@@ -92,6 +92,11 @@ def main(args):
 
     step = 0
 
+    best_valid_elbo = float('inf')
+    best_epoch = -1
+    epochs_without_improvement = 0
+    stop_training = False
+
     for epoch in range(args.epochs):
         for split in splits:
             data_loader = DataLoader(
@@ -164,6 +169,8 @@ def main(args):
                                                         pad_idx=datasets['train'].pad_idx)
                     tracker['z'] = torch.cat((tracker['z'], z.data), dim=0)
             print("%s Epoch %02d/%i, Mean ELBO %9.4f" % (split.upper(), epoch, args.epochs, tracker['ELBO'].mean()))
+            
+            epoch_elbo = tracker['ELBO'].mean().item()
 
             if args.tensorboard_logging:
                 writer.add_scalar("%s-Epoch/ELBO" % split.upper(), torch.mean(tracker['ELBO']), epoch)
@@ -175,12 +182,36 @@ def main(args):
                     os.makedirs('dumps/'+ts)
                 with open(os.path.join('dumps/'+ts+'/valid_E%i.json' % epoch), 'w') as dump_file:
                     json.dump(dump,dump_file)
+                
+                improved = epoch_elbo < (best_valid_elbo - args.min_delta)
+                if improved:
+                    best_valid_elbo = epoch_elbo
+                    best_epoch = epoch
+                    epochs_without_improvement = 0
+
+                    checkpoint_path = os.path.join(save_model_path, "best.pytorch")
+                    torch.save(model.state_dict(), checkpoint_path)
+                    print("Best model saved at %s" % checkpoint_path)
+                else:
+                    if epoch + 1 >= args.min_epochs:
+                        epochs_without_improvement += 1
+                        print("No valid improvement for %d epoch(s)." % epochs_without_improvement)
+
+                        if epochs_without_improvement >= args.patience:
+                            print("Early stopping at epoch %d. Best epoch: %d, best valid ELBO: %.4f"
+                                  % (epoch, best_epoch, best_valid_elbo))
+                            
+                            stop_training = True
             
             # save checkpoint
-            if split == 'train':
-                checkpoint_path = os.path.join(save_model_path, "E%i.pytorch" % epoch)
-                torch.save(model.state_dict(), checkpoint_path)
-                print("Model saved at %s" % checkpoint_path)
+            # if split == 'train':
+            #     checkpoint_path = os.path.join(save_model_path, "E%i.pytorch" % epoch)
+            #     torch.save(model.state_dict(), checkpoint_path)
+            #     print("Model saved at %s" % checkpoint_path)
+
+        if stop_training:
+            break   
+
 
 
 if __name__ == '__main__':
