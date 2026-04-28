@@ -245,6 +245,11 @@ if __name__ == '__main__':
     parser.add_argument('-log', '--logdir', type=str, default='logs')
     parser.add_argument('-bin', '--save_model_path', type=str, default='bin')
 
+    parser.add_argument('--patience', type=int, default=10)
+    parser.add_argument('--min_delta', type=float, default=0.01)
+    parser.add_argument('--min_epochs', type=int, default=15)
+
+
     args = parser.parse_args()
 
     args.rnn_type = args.rnn_type.lower()
