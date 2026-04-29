@@ -101,6 +101,11 @@ def main(args):
     train_losses = []
     valid_losses = []
 
+    train_nll_epochs = []
+    valid_nll_epochs = []
+    train_kl_epochs = []
+    valid_kl_epochs = []
+
     best_valid_elbo = float('inf')
     best_epoch = -1
     epochs_without_improvement = 0
@@ -117,6 +122,10 @@ def main(args):
             )
 
             tracker = defaultdict(tensor)
+
+            epoch_nll_sum = 0.0
+            epoch_kl_sum = 0.0
+            epoch_sample_count = 0
 
             # Enable/Disable Dropout
 
@@ -148,6 +157,10 @@ def main(args):
                         x0=args.x0
                     )
                     loss = (NLL_loss + KL_weight * KL_loss) / batch_size
+
+                    epoch_nll_sum += NLL_loss.item()
+                    epoch_kl_sum += KL_loss.item()
+                    epoch_sample_count += batch_size
 
                     # backward + optimization
                     if split == 'train':
@@ -182,13 +195,24 @@ def main(args):
             
             epoch_elbo = tracker['ELBO'].mean().item()
 
+            epoch_nll = epoch_nll_sum / epoch_sample_count
+            epoch_kl = epoch_kl_sum / epoch_sample_count
+
             if split == "train":
                 train_losses.append(epoch_elbo)
+                train_nll_epochs.append(epoch_nll)
+                train_kl_epochs.append(epoch_kl)
+
             elif split == "valid":
                 valid_losses.append(epoch_elbo)
+                valid_nll_epochs.append(epoch_nll)
+                valid_kl_epochs.append(epoch_kl)
 
             if args.tensorboard_logging:
                 writer.add_scalar("%s-Epoch/ELBO" % split.upper(), torch.mean(tracker['ELBO']), epoch)
+                
+                writer.add_scalar(f"{split.upper()}-Epoch/NLL", epoch_nll, epoch)
+                writer.add_scalar(f"{split.upper()}-Epoch/KL", epoch_kl, epoch)
 
             # save a dump of all sentences and the encoded latent space
             if split == 'valid':
@@ -242,6 +266,36 @@ def main(args):
     plt.close()
 
     print("Loss curve saved at %s" % plot_path)
+
+    # NLL curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(train_nll_epochs) + 1), train_nll_epochs, label='Train NLL', marker='o')
+    plt.plot(range(1, len(valid_nll_epochs) + 1), valid_nll_epochs, label='Valid NLL', marker='o')
+    plt.xlabel('Epoch')
+    plt.ylabel('NLL')
+    plt.title('Train vs Validation NLL')
+    plt.legend()
+    plt.grid(True)
+
+    nll_plot_path = os.path.join(save_model_path, 'nll_curve.png')
+    plt.savefig(nll_plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print("NLL curve saved at %s" % nll_plot_path)
+
+    # KL curve
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, len(train_kl_epochs) + 1), train_kl_epochs, label='Train KL', marker='o')
+    plt.plot(range(1, len(valid_kl_epochs) + 1), valid_kl_epochs, label='Valid KL', marker='o')
+    plt.xlabel('Epoch')
+    plt.ylabel('KL')
+    plt.title('Train vs Validation KL')
+    plt.legend()
+    plt.grid(True)
+
+    kl_plot_path = os.path.join(save_model_path, 'kl_curve.png')
+    plt.savefig(kl_plot_path, dpi=300, bbox_inches='tight')
+    plt.close()
+    print("KL curve saved at %s" % kl_plot_path)
 
 
 if __name__ == '__main__':
