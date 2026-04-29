@@ -88,7 +88,11 @@ def main(args):
 
         return NLL_Loss, KL_loss, KL_weight
     
-    optimizer = torch.optim.Adam(model.parameters(), lr = args.learning_rate)
+    optimizer = torch.optim.Adam(
+        model.parameters(),
+        lr=args.learning_rate,
+        weight_decay=args.weight_decay
+    )
 
     tensor = torch.cuda.FloatTensor if torch.cuda.is_available() else torch.Tensor
 
@@ -128,28 +132,29 @@ def main(args):
                     if torch.is_tensor(v):
                         batch[k] = to_var(v)
                 
-                # forward pass
-                logp, mean, logv, z = model(batch['input'], batch['length'])
-                # loss calculation
-                NLL_loss, KL_loss, KL_weight = loss_fn(
-                    logp=logp,
-                    target=batch['target'],
-                    length=batch['length'],
-                    mean=mean,
-                    logv=logv,
-                    anneal_function=args.anneal_function,
-                    step=step,
-                    k=args.k,
-                    x0=args.x0
-                )
-                loss = (NLL_loss + KL_weight * KL_loss) / batch_size
+                with torch.set_grad_enabled(split == 'train'):
+                    # forward pass
+                    logp, mean, logv, z = model(batch['input'], batch['length'])
+                    # loss calculation
+                    NLL_loss, KL_loss, KL_weight = loss_fn(
+                        logp=logp,
+                        target=batch['target'],
+                        length=batch['length'],
+                        mean=mean,
+                        logv=logv,
+                        anneal_function=args.anneal_function,
+                        step=step,
+                        k=args.k,
+                        x0=args.x0
+                    )
+                    loss = (NLL_loss + KL_weight * KL_loss) / batch_size
 
-                # backward + optimization
-                if split == 'train':
-                    optimizer.zero_grad()
-                    loss.backward()
-                    optimizer.step()
-                    step += 1
+                    # backward + optimization
+                    if split == 'train':
+                        optimizer.zero_grad()
+                        loss.backward()
+                        optimizer.step()
+                        step += 1
                 # bookkeeping
                 tracker['ELBO'] = torch.cat((tracker['ELBO'], loss.data.view(1, -1)), dim=0)
 
@@ -251,6 +256,7 @@ if __name__ == '__main__':
     parser.add_argument('-ep', '--epochs', type=int, default=10)
     parser.add_argument('-bs', '--batch_size', type=int, default=32)
     parser.add_argument('-lr', '--learning_rate', type=float, default=0.001)
+    parser.add_argument('--weight_decay', type=float, default=0.0)
 
     parser.add_argument('-eb', '--embedding_size', type=int, default=300)
     parser.add_argument('-rnn', '--rnn_type', type=str, default='gru')

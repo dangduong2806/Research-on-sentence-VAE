@@ -50,7 +50,8 @@ def expierment_name(args, ts):
     exp_name += "L=%i_" % args.num_layers
     exp_name += "BI=%i_" % args.bidirectional
     exp_name += "LS=%i_" % args.latent_size
-    exp_name += "WD={}_".format(args.word_dropout)
+    exp_name += "WORDD={}_".format(args.word_dropout)
+    exp_name += "WDECAY={}_".format(getattr(args, 'weight_decay', 0.0))
     exp_name += "ANN=%s_" % args.anneal_function.upper()
     exp_name += "K={}_".format(args.k)
     exp_name += "X0=%i_" % args.x0

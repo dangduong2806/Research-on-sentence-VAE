@@ -94,7 +94,7 @@ class SentenceVAE(nn.Module):
             hidden = hidden.unsqueeze(0)
 
         # Decoder input
-        if self.word_dropout_rate > 0:
+        if self.training and self.word_dropout_rate > 0:
             # randomly replace decoder input with <unk>
             prob = torch.rand(input_sequence.size())
             if torch.cuda.is_available():
